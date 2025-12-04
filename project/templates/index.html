@@ -4,11 +4,7 @@
   <meta charset="utf-8">
   <title>Attitude Judge System</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: radial-gradient(circle at top, #111827, #020617);
@@ -20,11 +16,7 @@
       margin: 0 auto;
       padding: 24px 16px 40px;
     }
-    /* ヘッダー */
-    .header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
+    .header { text-align: center; margin-bottom: 24px; }
     .title {
       font-size: 32px;
       font-weight: 700;
@@ -39,8 +31,6 @@
       font-size: 13px;
       color: #9ca3af;
     }
-
-    /* タイマー行 */
     .top-row {
       display: flex;
       justify-content: center;
@@ -71,7 +61,6 @@
       font-weight: 700;
       font-variant-numeric: tabular-nums;
     }
-
     .start-btn {
       padding: 10px 26px;
       border-radius: 999px;
@@ -99,23 +88,14 @@
       box-shadow: 0 8px 24px rgba(0,0,0,0.85);
       border-color: rgba(250,204,21,0.75);
     }
-    .start-btn:active {
-      transform: translateY(0px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-    }
-
-    /* メインレイアウト */
     .main-grid {
       display: grid;
       grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.3fr);
       gap: 20px;
     }
     @media (max-width: 900px) {
-      .main-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
+      .main-grid { grid-template-columns: minmax(0, 1fr); }
     }
-
     .card {
       background: radial-gradient(circle at top left, rgba(148,163,184,0.14), rgba(15,23,42,0.96));
       border-radius: 18px;
@@ -133,11 +113,7 @@
       opacity: 0.4;
       pointer-events: none;
     }
-    .card-inner {
-      position: relative;
-      z-index: 1;
-    }
-
+    .card-inner { position: relative; z-index: 1; }
     .section-title {
       font-size: 14px;
       text-transform: uppercase;
@@ -145,19 +121,13 @@
       color: #9ca3af;
       margin-bottom: 10px;
     }
-
     .video-frame {
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid rgba(15,23,42,0.9);
       box-shadow: 0 10px 25px rgba(0,0,0,0.9);
     }
-    .video-frame img {
-      width: 100%;
-      display: block;
-    }
-
-    /* ステータス */
+    .video-frame img { width: 100%; display: block; }
     .status-bar {
       margin-top: 12px;
       display: flex;
@@ -168,9 +138,7 @@
       font-size: 13px;
       color: #e5e7eb;
     }
-    .status-text {
-      min-height: 18px;
-    }
+    .status-text { min-height: 18px; }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -190,8 +158,6 @@
       border-radius: 999px;
       background: #fbbf24;
     }
-
-    /* 顔アップ */
     .face-wrapper {
       display: flex;
       flex-direction: column;
@@ -223,13 +189,11 @@
       font-weight: 600;
       color: #f97373;
     }
-
     .ng-info {
       font-size: 12px;
       color: #9ca3af;
       margin-top: 6px;
     }
-
   </style>
 </head>
 <body>
@@ -251,7 +215,6 @@
     </div>
 
     <main class="main-grid">
-      <!-- 左：ライブ映像 -->
       <section class="card">
         <div class="card-inner">
           <div class="section-title">Live Monitor</div>
@@ -268,7 +231,6 @@
         </div>
       </section>
 
-      <!-- 右：結果・顔アップ -->
       <section class="card">
         <div class="card-inner">
           <div class="section-title">Result</div>
@@ -286,13 +248,21 @@
   </div>
 
   <script>
-    // 映像ストリームのURLを設定（キャッシュ防止）
+    // ★サーバ側の ADMIN_PASSWORD と一致させる
+    const ADMIN_PASSWORD = "CHANGE_ME_PASSWORD";
+
+    // 映像ストリームURL設定
     window.addEventListener("load", () => {
       document.getElementById("video").src = "/video_feed?cb=" + Date.now();
     });
 
     async function startMeasure(){
-      await fetch("/start", { method: "POST" });
+      await fetch("/start", {
+        method: "POST",
+        headers: {
+          "X-ADMIN": yoshi1818
+        }
+      });
     }
 
     function formatTime(sec){
@@ -307,13 +277,13 @@
       const text = document.getElementById("badge-text");
 
       if (data.analyzing){
-        dot.style.background = "#fbbf24"; // yellow
+        dot.style.background = "#fbbf24";
         text.textContent = "Analyzing";
       } else if (data.selected_person >= 0){
-        dot.style.background = "#22c55e"; // green
+        dot.style.background = "#22c55e";
         text.textContent = "Completed";
       } else {
-        dot.style.background = "#64748b"; // gray
+        dot.style.background = "#64748b";
         text.textContent = "Waiting";
       }
     }
@@ -322,11 +292,9 @@
       const res = await fetch("/status");
       const data = await res.json();
 
-      // タイマー更新
       document.getElementById("global-timer").textContent =
         formatTime(data.remaining_time);
 
-      // ステータステキスト
       const statusEl = document.getElementById("status");
       const names = ["左の人", "中央の人", "右の人"];
 
@@ -339,23 +307,16 @@
           names[data.selected_person] + "</b> です。<br>理由: " +
           data.reason;
 
-        // 顔アップのリロード
         document.getElementById("face-up").src =
           "/face_image?cb=" + Date.now();
       } else {
         statusEl.textContent = "待機中…";
       }
 
-      // Winner 名と NG情報
-      const winnerNameEl = document.getElementById("winner-name");
-      const ngInfoEl = document.getElementById("ng-info");
-      if (data.selected_person >= 0){
-        winnerNameEl.textContent = names[data.selected_person];
-      } else {
-        winnerNameEl.textContent = "-";
-      }
       const ng = data.ng_counts;
-      ngInfoEl.textContent =
+      document.getElementById("winner-name").textContent =
+        data.selected_person >= 0 ? names[data.selected_person] : "-";
+      document.getElementById("ng-info").textContent =
         "NG Count: [ " + ng[0] + ", " + ng[1] + ", " + ng[2] + " ]";
 
       updateBadge(data);
