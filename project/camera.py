@@ -14,22 +14,28 @@ picam2.start()
 def generate_stream():
     """
     Flaskの /video_feed から呼ばれるジェネレータ。
-    BGR → AI処理 → 表示用GBR → JPEG → MJPEGストリーム
+    BGR → AI処理 → 表示用RGB → GBR → JPEG → ストリーム
     """
     while True:
-        frame = picam2.capture_array("main")  # BGR
+        # カメラからBGRで取得
+        frame = picam2.capture_array("main")
 
-        # 顔検出 & 描画 & 判定
+        # 顔検出 & 描画（BGRで処理）
         frame = process_frame(frame)
 
-        # 表示用：BGR → RGB → GBR に並び替え
-        display = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # RGB
-        display = display[:, :, [1, 2, 0]]                # RGB → GBR
+        # ↓↓↓ ここが "スタンドアロン版" と同じになる大事な部分 ↓↓↓
 
+        # (1) AI処理後の BGR → RGB に変換
+        display = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # JPEG化
         ret, buffer = cv2.imencode(".jpg", display)
         if not ret:
             continue
         jpg = buffer.tobytes()
 
-        yield (b"--frame\r\n"
-               b"Content-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n")
+        # ストリーム出力
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n"
+        )
