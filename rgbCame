@@ -1,0 +1,156 @@
+import cv2
+import mediapipe as mp
+from picamera2 import Picamera2
+import random
+import time
+import sys
+
+# --- 設定エリア ---
+MEASURE_DURATION = 60  # 計測する時間 (秒)
+PREVIEW_WIDTH = 640    # 画面の幅
+PREVIEW_HEIGHT = 480   # 画面の高さ
+WINDOW_NAME = 'Attitude Detection System'
+# ------------------
+
+def main():
+    # Mediapipeの初期化 (顔検出のみ使用)
+    mp_face = mp.solutions.face_detection
+    
+    # カメラの初期化
+    picam2 = Picamera2()
+    # OpenCVの標準である「BGR形式」で画像を取得する設定
+    config = picam2.create_preview_configuration(
+        main={"size": (PREVIEW_WIDTH, PREVIEW_HEIGHT), "format": "BGR888"}
+    )
+    picam2.configure(config)
+    picam2.start()
+
+    print(f"システム起動... {MEASURE_DURATION} 秒間計測します")
+    print("'q' キーを押すか、ウィンドウを閉じると終了します")
+
+    # 変数の準備
+    start_time = time.time()  # 開始時刻
+    total_frames_processed = 0
+    ng_frame_counts = [0, 0, 0] # 左・中・右のNGカウント
+    final_selected_person = -1  # 選定された人 (-1は未定)
+
+    try:
+        # 顔検出モデルの読み込み
+        with mp_face.FaceDetection(min_detection_confidence=0.5) as face_detector:
+
+            while True:
+                # 1. 画像の取得 (BGR形式)
+                frame = picam2.capture_array("main")
+                
+                # --- 安全対策: ウィンドウが閉じられたら終了 ---
+                try:
+                    if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
+                        if total_frames_processed > 10: 
+                            print("ウィンドウが閉じられました。終了します。")
+                            break
+                except:
+                    pass
+                # ----------------------------------------
+
+                # 2. AI検出処理
+                # AIに見せるために一時的にRGBに変換 (AIはRGBが得意なため)
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_rgb.flags.writeable = False
+                face_results = face_detector.process(frame_rgb)
+                
+                # 3. 分析と描画 (元のframeに描画)
+                faces = []
+                if face_results.detections:
+                    for detection in face_results.detections:
+                        # 顔の座標を取得
+                        bbox = detection.location_data.relative_bounding_box
+                        ih, iw, _ = frame.shape
+                        x, y, w, h = int(bbox.xmin * iw), int(bbox.ymin * ih), int(bbox.width * iw), int(bbox.height * ih)
+                        center_x = x + w // 2
+                        faces.append((center_x, (x, y, w, h)))
+
+                # 左から右へ並び替え
+                faces.sort(key=lambda f: f[0])
+
+                # 3つのエリア判定
+                area_width = PREVIEW_WIDTH // 3
+                current_frame_status = [0, 0, 0] # 0=NG, 1=OK
+
+                for cx, (x, y, w, h) in faces:
+                    # 顔枠を描画 (緑色)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    
+                    # どのエリアにいるか判定
+                    if cx < area_width:
+                        current_frame_status[0] = 1 # 左エリアOK
+                    elif cx < area_width * 2:
+                        current_frame_status[1] = 1 # 中エリアOK
+                    else:
+                        current_frame_status[2] = 1 # 右エリアOK
+
+                # エリアの区切り線を描画
+                for i in range(1, 3):
+                    cv2.line(frame, (area_width * i, 0), (area_width * i, PREVIEW_HEIGHT), (200, 200, 200), 1)
+
+                # 4. ロジック判定 (時間経過とカウント)
+                elapsed_time = time.time() - start_time
+                remaining_time = MEASURE_DURATION - elapsed_time
+
+                if remaining_time > 0:
+                    # --- 計測中 (フェーズ1) ---
+                    total_frames_processed += 1
+                    for i in range(3):
+                        if current_frame_status[i] == 0: # 顔がない場合
+                            ng_frame_counts[i] += 1      # NGカウントを増やす
+
+                    # 残り時間の表示
+                    cv2.putText(frame, f"ANALYZING... {int(remaining_time)} sec", (20, 40), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                    
+                    # 現在のNG数を画面下に表示
+                    for i in range(3):
+                        cv2.putText(frame, f"NG:{ng_frame_counts[i]}", (i * area_width + 10, PREVIEW_HEIGHT - 20), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1)
+                else:
+                    # --- 結果発表 (フェーズ2) ---
+                    if final_selected_person == -1: # まだ決まっていなければ決定する
+                        max_ng_count = max(ng_frame_counts)
+                        if max_ng_count > 0:
+                            # NG数が最大の候補者リストを作成
+                            candidates = [i for i, count in enumerate(ng_frame_counts) if count == max_ng_count]
+                            # その中からランダムで1名選出
+                            final_selected_person = random.choice(candidates)
+                            reason_text = "WORST ATTITUDE" # 理由: 態度悪い
+                        else:
+                            # 全員NGなしなら完全ランダム
+                            final_selected_person = random.choice([0, 1, 2])
+                            reason_text = "RANDOM (ALL GOOD)" # 理由: 全員良い
+                        print(f"決定しました: エリア {final_selected_person} ({reason_text})")
+
+                    # 選ばれた人を赤枠で囲む
+                    sx = final_selected_person * area_width
+                    cv2.rectangle(frame, (sx + 5, 5), (sx + area_width - 5, PREVIEW_HEIGHT - 5), (0, 0, 255), 5)
+                    cv2.putText(frame, "SELECTED", (sx + 10, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+                    cv2.putText(frame, "RESTART TO RESET", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+
+                # 5. 画面表示 (人間が見やすいように色を反転させて表示)
+                # BGR画像をRGB画像に変換して表示 (v5の修正点)
+                display_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                cv2.imshow(WINDOW_NAME, display_frame)
+
+                # 終了キー確認
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    print("'q' が押されました。終了します。")
+                    break
+    
+    except Exception as e:
+        print(f"エラーが発生しました: {e}")
+    
+    finally:
+        # 後片付け
+        cv2.destroyAllWindows()
+        picam2.stop()
+        print("システムを安全に停止しました。")
+
+if __name__ == '__main__':
+    main()
