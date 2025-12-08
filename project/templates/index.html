@@ -249,7 +249,7 @@
 
   <script>
     // ★サーバ側の ADMIN_PASSWORD と一致させる
-    const ADMIN_PASSWORD = "CHANGE_ME_PASSWORD";
+    const ADMIN_PASSWORD = "yoshi1818";
 
     // 映像ストリームURL設定
     window.addEventListener("load", () => {
@@ -260,7 +260,7 @@
       await fetch("/start", {
         method: "POST",
         headers: {
-          "X-ADMIN": yoshi1818
+          "X-ADMIN": ADMIN_PASSWORD
         }
       });
     }
