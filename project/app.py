@@ -1,44 +1,68 @@
-from flask import Flask, Response, render_template, jsonify, request
+from flask import Flask, Response, render_template, jsonify, request, redirect, session
 from camera import generate_stream
 from state import state
 import time
 from functools import wraps
 
 app = Flask(__name__)
+app.secret_key = "2411"  # 必ず変更！
 
-# ★ 管理用パスワード（必ず変えてね）
-ADMIN_PASSWORD = "yoshi1818"
+# ★ ログインで入力させるパスワード（ここを変えるだけでOK）
+LOGIN_PASSWORD = "yoshi1818"
 
 
-# ---- 認証デコレータ ----
-def require_auth(func):
+# ---------------------------------------------------
+# ログイン必須デコレータ
+# ---------------------------------------------------
+def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        password = request.headers.get("X-ADMIN")
-        if password != ADMIN_PASSWORD:
-            return jsonify({"error": "unauthorized"}), 401
+        if not session.get("logged_in"):
+            return redirect("/login")
         return func(*args, **kwargs)
     return wrapper
 
 
-# ---- IP制限（LAN内からだけアクセス許可など）----
-@app.before_request
-def limit_remote_addr():
-    # 例：192.168.*.* だけ許可（自宅LAN想定）
-    allowed_prefixes = ["192.168.", "10.", "172.16."]
-    ip = request.remote_addr or ""
-    if not any(ip.startswith(p) for p in allowed_prefixes) and ip != "127.0.0.1":
-        return "Access Denied", 403
+# ---------------------------------------------------
+# Login Page
+# ---------------------------------------------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        pw = request.form.get("password")
+
+        if pw == LOGIN_PASSWORD:
+            session["logged_in"] = True
+            return redirect("/")
+        else:
+            return render_template("login.html", error="パスワードが違います")
+
+    return render_template("login.html", error=None)
 
 
-# ---- ルーティング ----
+# ---------------------------------------------------
+# Logout
+# ---------------------------------------------------
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+
+# ---------------------------------------------------
+# メインUI（ログインしないと見れない）
+# ---------------------------------------------------
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 
+# ---------------------------------------------------
+# API（start / status / video_feed / face_image 全部ログイン必須）
+# ---------------------------------------------------
 @app.route("/start", methods=["POST"])
-@require_auth
+@login_required
 def start_measure():
     state.start_time = time.time()
     state.reset()
@@ -46,11 +70,13 @@ def start_measure():
 
 
 @app.route("/status")
+@login_required
 def status():
     return jsonify(state.to_dict())
 
 
 @app.route("/video_feed")
+@login_required
 def video_feed():
     return Response(
         generate_stream(),
@@ -59,17 +85,14 @@ def video_feed():
 
 
 @app.route("/face_image")
+@login_required
 def face_image():
-    # 顔画像取得（IP制限のみ。必要なら認証も追加してOK）
     return state.get_face_image()
 
 
+# ---------------------------------------------------
 if __name__ == "__main__":
     try:
-        # ★ HTTPS化したいときは ssl_context を追加：
-        # app.run(host="0.0.0.0", port=5000,
-        #         ssl_context=("server.crt", "server.key"),
-        #         debug=False, threaded=True)
         app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
     finally:
         state.cleanup()
