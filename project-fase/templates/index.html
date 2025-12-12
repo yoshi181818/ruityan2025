@@ -1,0 +1,335 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Attitude Judge System - Ranking Mode</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827, #020617);
+      color: #f9fafb;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+    .header { text-align: center; margin-bottom: 24px; }
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #facc15, #e5e7eb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .top-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 24px 0 20px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .timer-box {
+      padding: 10px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(251,191,36,0.5);
+      background: radial-gradient(circle at top, rgba(250,204,21,0.16), rgba(15,23,42,0.9));
+      box-shadow: 0 0 22px rgba(250,204,21,0.35);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .timer-label {
+      font-size: 13px;
+      color: #e5e7eb;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+    .timer-value {
+      font-size: 26px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .start-btn {
+      padding: 10px 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.8);
+      background: linear-gradient(90deg, #0f172a, #020617);
+      color: #e5e7eb;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 5px 18px rgba(0,0,0,0.7);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border 0.12s ease;
+    }
+    .start-btn span.icon {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+    .start-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.85);
+      border-color: rgba(250,204,21,0.75);
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.3fr);
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    .card {
+      background: radial-gradient(circle at top left, rgba(148,163,184,0.14), rgba(15,23,42,0.96));
+      border-radius: 18px;
+      padding: 16px 16px 18px;
+      border: 1px solid rgba(148,163,184,0.3);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.8);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at top left, rgba(250,204,21,0.12), transparent 55%);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .card-inner { position: relative; z-index: 1; }
+    .section-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #9ca3af;
+      margin-bottom: 10px;
+    }
+    .video-frame {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(15,23,42,0.9);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.9);
+    }
+    .video-frame img { width: 100%; display: block; }
+    .status-bar {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: #e5e7eb;
+    }
+    .status-text { min-height: 18px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.8);
+      background: rgba(15,23,42,0.9);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: #cbd5f5;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #fbbf24;
+    }
+    .face-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .face-img-frame {
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      padding: 4px;
+      background: radial-gradient(circle at top, rgba(250,204,21,0.5), rgba(15,23,42,0.95));
+      box-shadow: 0 0 30px rgba(250,204,21,0.45);
+    }
+    .face-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(15,23,42,0.95);
+    }
+    .face-label {
+      font-size: 13px;
+      color: #e5e7eb;
+      opacity: 0.85;
+    }
+    .winner-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f97373;
+    }
+    .ng-info {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="title">Attitude Judge System</div>
+      <div class="subtitle">AIが全生徒を追跡し、NGスコア（よそ見・居眠り）が高いワースト1位を選出します。</div>
+    </header>
+
+    <div class="top-row">
+      <div class="timer-box">
+        <div class="timer-label">Remaining</div>
+        <div class="timer-value" id="global-timer">--:--</div>
+      </div>
+      <button class="start-btn" onclick="startMeasure()">
+        <span class="icon"></span>
+        Start Measurement
+      </button>
+    </div>
+
+    <main class="main-grid">
+      <section class="card">
+        <div class="card-inner">
+          <div class="section-title">Live Tracking</div>
+          <div class="video-frame">
+            <img id="video" src="">
+          </div>
+          <div class="status-bar">
+            <div class="status-text" id="status">待機中…</div>
+            <div class="badge">
+              <div class="dot" id="badge-dot"></div>
+              <span id="badge-text">Waiting</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-inner">
+          <div class="section-title">Worst Ranking</div>
+          <div class="face-wrapper">
+            <div class="face-img-frame">
+              <img id="face-up" class="face-img" src="/face_image?cb=0">
+            </div>
+            <div class="face-label">Result (Most NG)</div>
+            <div class="winner-name" id="winner-name">-</div>
+            <div class="ng-info" id="ng-info">
+              1位: - <br> 2位: - <br> 3位: -
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const ADMIN_PASSWORD = "yoshi1818";
+
+    window.addEventListener("load", () => {
+      document.getElementById("video").src = "/video_feed?cb=" + Date.now();
+    });
+
+    async function startMeasure(){
+      await fetch("/start", {
+        method: "POST",
+        headers: { "X-ADMIN": ADMIN_PASSWORD }
+      });
+    }
+
+    function formatTime(sec){
+      if (sec < 0) sec = 0;
+      const m = String(Math.floor(sec / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
+      return m + ":" + s;
+    }
+
+    function updateBadge(data){
+      const dot = document.getElementById("badge-dot");
+      const text = document.getElementById("badge-text");
+
+      if (data.analyzing){
+        dot.style.background = "#fbbf24";
+        text.textContent = "Tracking";
+      } else if (data.selected_person >= 0){
+        dot.style.background = "#ef4444"; // 赤色に変更
+        text.textContent = "Determined";
+      } else {
+        dot.style.background = "#64748b";
+        text.textContent = "Waiting";
+      }
+    }
+
+    async function pollStatus(){
+      const res = await fetch("/status");
+      const data = await res.json();
+
+      document.getElementById("global-timer").textContent =
+        formatTime(data.remaining_time);
+
+      const statusEl = document.getElementById("status");
+      
+      // ★変更点: ラベルを「場所」から「順位」に変更
+      const names = ["ワースト1位", "ワースト2位", "ワースト3位"];
+
+      if (data.analyzing){
+        statusEl.innerHTML =
+          "追跡・計測中… 残り <b>" + data.remaining_time + "</b> 秒";
+        
+        // 計測中は暫定1位を表示
+        document.getElementById("winner-name").textContent = "集計中...";
+
+      } else if (data.selected_person >= 0){
+        statusEl.innerHTML =
+          "<b style='color:#f97373;'>" + names[data.selected_person] + "</b> が確定しました。<br>" +
+          "詳細: " + data.reason;
+
+        document.getElementById("winner-name").textContent = names[data.selected_person];
+        document.getElementById("face-up").src = "/face_image?cb=" + Date.now();
+      } else {
+        statusEl.textContent = "待機中… (Startボタンを押してください)";
+        document.getElementById("winner-name").textContent = "-";
+      }
+
+      // NGスコアの表示（ワースト3まで）
+      const ng = data.ng_counts; // [1位のスコア, 2位のスコア, 3位のスコア]
+      document.getElementById("ng-info").innerHTML =
+        "<span style='color:#f87171'>1位 (NG): " + ng[0] + "</span><br>" +
+        "2位 (NG): " + ng[1] + "<br>" +
+        "3位 (NG): " + ng[2];
+
+      updateBadge(data);
+    }
+
+    setInterval(pollStatus, 1000);
+  </script>
+</body>
+</html>
