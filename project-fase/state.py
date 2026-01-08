@@ -10,7 +10,7 @@ FACE_PATH = "attitude_face.jpg"
 
 class State:
     def __init__(self):
-        self.MEASURE_DURATION = 60
+        self.MEASURE_DURATION = 30
         self.lock = threading.Lock()
         self.analyzing = False
         self.start_time = None
